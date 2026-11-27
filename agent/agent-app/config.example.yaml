@@ -1,0 +1,52 @@
+# Copyright (c) 2026 Arka Prava Ghosh
+# SPDX-License-Identifier: Apache-2.0
+
+# Example agent configuration (Spring Boot property tree).
+# Copy to ~/.agent-retry/config.yaml — the agent imports it via:
+#   spring.config.import=optional:file:${user.home}/.agent-retry/config.yaml
+#
+# Paths use ~/. prefix — expanded on Windows, macOS, and Linux.
+
+agent:
+  platform:
+    installation-tier: TIER_1_CORE
+    auto-discovery: true
+
+  manager:
+    url: http://localhost:28471
+    api-key: dev-agent-key
+
+  user:
+    email:
+
+  identity:
+    id-file: ${user.home}/.agent-retry/agent-id
+    lock-file: ${user.home}/.agent-retry/agent.lock
+
+  discovery:
+    recency-days: 30
+
+  session:
+    idle-complete-minutes: 30
+
+  upload:
+    batch-interval-seconds: 10
+    max-batch-size: 100
+    buffer-path: ${user.home}/.agent-retry/buffer.db
+    buffer-max-rows: 50000
+    buffer-max-age-hours: 168
+    buffer-max-bytes: 268435456
+
+  collectors:
+    - type: cursor
+      enabled: true
+      watch-path: ~/.cursor/projects
+    - type: claude_code
+      enabled: true
+      watch-path: ~/.claude/projects
+    - type: codex
+      enabled: true
+      watch-path: ~/.codex/sessions
+
+  privacy:
+    store-full-prompts: false

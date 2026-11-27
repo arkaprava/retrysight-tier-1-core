@@ -1,0 +1,105 @@
+# RetrySight Core (TIER_1_CORE) — deployment stack
+# Standalone product — builds from this repo root.
+
+services:
+  postgres:
+    build:
+      context: ./docker/postgres
+    image: retrysight/tier-core-postgres:${RETRYSIGHT_VERSION:-local}
+    container_name: retrysight-core-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agent_retry_core}
+      POSTGRES_USER: ${POSTGRES_USER:-retrysight_core}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme-core}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - tier_core_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  manager:
+    build:
+      context: .
+      dockerfile: infra/manager/Dockerfile
+    image: retrysight/tier-core-manager:${RETRYSIGHT_VERSION:-local}
+    container_name: retrysight-core-manager
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker,tier-core}
+      MANAGER_PORT: ${MANAGER_PORT:-28471}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-agent_retry_core}
+      POSTGRES_USER: ${POSTGRES_USER:-retrysight_core}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme-core}
+      JWT_SECRET: ${JWT_SECRET:-agent-retry-platform-dev-secret-key-32chars}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:8080}
+      SECADMIN_EMAIL: ${SECADMIN_EMAIL:-secadmin@local}
+      SECADMIN_PASSWORD: ${SECADMIN_PASSWORD:-changeme}
+      SSO_SECRET_KEY: ${SSO_SECRET_KEY:-dev-sso-secret-encryption-key-32}
+      SSO_CALLBACK_BASE_URL: ${SSO_CALLBACK_BASE_URL:-http://localhost:8080}
+      SSO_MANAGER_BASE_URL: ${SSO_MANAGER_BASE_URL:-http://localhost:28471}
+      SSO_IDP_BROWSER_BASE_URL: ${SSO_IDP_BROWSER_BASE_URL:-http://localhost:8082}
+      SSO_IDP_INTERNAL_BASE_URL: ${SSO_IDP_INTERNAL_BASE_URL:-http://host.docker.internal:8082}
+      AGENT_API_KEY: ${AGENT_API_KEY:-dev-agent-key}
+      SECURITY_ALLOW_DEFAULT_SECRETS: ${SECURITY_ALLOW_DEFAULT_SECRETS:-true}
+      CLICKHOUSE_ENABLED: "false"
+      OTEL_INGEST_ENABLED: ${OTEL_INGEST_ENABLED:-false}
+      CHAT_ENABLED: ${CHAT_ENABLED:-false}
+      RETENTION_TASK_EVENTS_DAYS: ${RETENTION_TASK_EVENTS_DAYS:-90}
+    ports:
+      - "${MANAGER_PORT:-28471}:${MANAGER_PORT:-28471}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:${MANAGER_PORT:-28471}/api/v1/auth/sso/status >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/frontend/Dockerfile
+    image: retrysight/tier-core-frontend:${RETRYSIGHT_VERSION:-local}
+    container_name: retrysight-core-frontend
+    environment:
+      MANAGER_PORT: ${MANAGER_PORT:-28471}
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      manager:
+        condition: service_healthy
+
+  agent:
+    build:
+      context: .
+      dockerfile: infra/agent/Dockerfile
+    image: retrysight/tier-core-agent:${RETRYSIGHT_VERSION:-local}
+    container_name: retrysight-core-agent
+    profiles:
+      - agent
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker,tier-core}
+      MANAGER_PORT: ${MANAGER_PORT:-28471}
+      AGENT_MANAGER_URL: ${AGENT_MANAGER_URL:-http://manager:28471}
+      AGENT_MANAGER_API_KEY: ${AGENT_API_KEY:-dev-agent-key}
+    volumes:
+      # Host IDE log dirs — set AGENT_*_DIR on Windows (PowerShell: $env:USERPROFILE\.cursor)
+      - ${AGENT_CURSOR_DIR:-${USERPROFILE:-${HOME}}/.cursor}:/home/collector/.cursor:ro
+      - ${AGENT_CLAUDE_DIR:-${USERPROFILE:-${HOME}}/.claude}:/home/collector/.claude:ro
+      - ${AGENT_CODEX_DIR:-${USERPROFILE:-${HOME}}/.codex}:/home/collector/.codex:ro
+      - tier_core_buffer:/home/collector/.agent-retry
+      - ./config/agent/config.yaml:/home/collector/.agent-retry/config.yaml:ro
+    depends_on:
+      manager:
+        condition: service_healthy
+
+volumes:
+  tier_core_pgdata:
+  tier_core_buffer:

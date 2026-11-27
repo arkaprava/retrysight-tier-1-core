@@ -1,0 +1,29 @@
+# RetrySight Core — collector configuration
+# Copy to ~/.agent-retry/config.yaml on developer machines, or mount in agent container.
+
+agent:
+  platform:
+    installation-tier: TIER_1_CORE
+
+  manager:
+    url: http://localhost:28471
+    api-key: dev-agent-key
+
+  upload:
+    batch-interval-seconds: 10
+    max-batch-size: 100
+    buffer-path: ${user.home}/.agent-retry/buffer.db
+
+  collectors:
+    - type: cursor
+      enabled: true
+      watch-path: ~/.cursor/projects
+    - type: claude_code
+      enabled: true
+      watch-path: ~/.claude/projects
+    - type: codex
+      enabled: true
+      watch-path: ~/.codex/sessions
+
+  privacy:
+    store-full-prompts: false

@@ -1,0 +1,89 @@
+# Copyright (c) 2026 Arka Prava Ghosh
+# SPDX-License-Identifier: Apache-2.0
+
+spring:
+  application:
+    name: agent-retry-collector
+  config:
+    # Optional operator overrides (Spring property tree under `agent:`). See config.example.yaml.
+    import: optional:file:${user.home}/.agent-retry/config.yaml
+  main:
+    web-application-type: none
+  task:
+    scheduling:
+      pool:
+        size: 4
+
+agent:
+  platform:
+    installation-tier: TIER_1_CORE
+    auto-discovery: false
+    features:
+      phase1-foundation: true
+      phase2-collectors: false
+      phase3-yaml-registry: false
+      phase4-push-ingest: false
+      git-context-capture: false
+      git-context-query: false
+      git-context-advanced: false
+      git-context-enterprise: false
+  manager:
+    url: ${AGENT_MANAGER_URL:http://localhost:${MANAGER_PORT:28471}}
+    api-key: ${AGENT_MANAGER_API_KEY:${AGENT_API_KEY:dev-agent-key}}
+  identity:
+    id-file: ${user.home}/.agent-retry/agent-id
+    lock-file: ${user.home}/.agent-retry/agent.lock
+  discovery:
+    recency-days: 30
+    refresh-interval-seconds: 300
+  session:
+    idle-complete-minutes: 30
+  cli:
+    command: run
+  upload:
+    batch-interval-seconds: 2
+    scan-interval-seconds: 3
+    max-batch-size: 500
+    buffer-path: ${user.home}/.agent-retry/buffer.db
+    buffer-max-rows: 50000
+    buffer-max-age-hours: 168
+    buffer-max-bytes: 268435456
+  privacy:
+    store-full-prompts: false
+  collectors:
+    - type: cursor
+      enabled: true
+      watch-path: ~/.cursor/projects
+    - type: claude_code
+      enabled: true
+      watch-path: ~/.claude/projects
+    - type: codex
+      enabled: true
+      watch-path: ~/.codex/sessions
+
+logging:
+  level:
+    com.agentretry: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+agent:
+  manager:
+    url: ${AGENT_MANAGER_URL:http://manager:${MANAGER_PORT:28471}}
+    api-key: ${AGENT_MANAGER_API_KEY:dev-agent-key}
+  upload:
+    buffer-path: /home/collector/.agent-retry/buffer.db
+  collectors:
+    - type: cursor
+      enabled: true
+      watch-path: /home/collector/.cursor/projects
+    - type: claude_code
+      enabled: true
+      watch-path: /home/collector/.claude/projects
+    - type: codex
+      enabled: true
+      watch-path: /home/collector/.codex/sessions

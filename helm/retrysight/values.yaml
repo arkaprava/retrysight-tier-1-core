@@ -1,0 +1,74 @@
+# Tier-specific defaults — override image registry/tag at install time.
+tier:
+  slug: tier-core
+  installationTier: TIER_1_CORE
+  springProfiles: docker,tier-core
+
+nameOverride: ""
+fullnameOverride: ""
+
+images:
+  # Public multi-arch images on GHCR: ghcr.io/arkaprava/retrysight-tier-1-core/<component>:<tag>.
+  # Air-gapped: `docker load` the CDN/Release tarballs (same tags), or push them to your own
+  # registry and override registry/repository.
+  registry: ghcr.io
+  repository: arkaprava/retrysight-tier-1-core
+  tag: "1.0.0"
+  composeStyle: false
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+postgres:
+  enabled: true
+  database: agent_retry_core
+  user: retrysight_core
+  password: ""  # empty = generated on install, kept on upgrade
+  storage: 10Gi
+  storageClassName: ""
+
+clickhouse:
+  enabled: false
+  database: agent_retry
+  user: default
+  password: ""  # empty = generated
+  storage: 20Gi
+
+minio:
+  enabled: false
+  rootUser: minioadmin
+  rootPassword: ""  # empty = generated
+  bucket: retrysight-archive
+  storage: 20Gi
+
+manager:
+  replicaCount: 1
+  port: 28471
+  resources: {}
+  # Leave secrets empty to have the chart generate them (stored in <release>-retrysight-secrets).
+  jwtSecret: ""
+  agentApiKey: ""
+  secadminEmail: secadmin@local
+  secadminPassword: ""
+  ssoSecretKey: ""
+  corsAllowedOrigins: "http://localhost,http://localhost:8080"
+  # Only for throwaway local evals with the compose dev defaults. Never in shared clusters.
+  allowDefaultSecrets: false
+  clickhouseEnabled: false
+  otelIngestEnabled: false
+
+frontend:
+  replicaCount: 1
+  port: 8080
+  serviceType: ClusterIP
+  resources: {}
+
+ingress:
+  enabled: false
+  className: ""
+  host: retrysight.local
+  tls: false
+
+serviceAccount:
+  create: false
+  name: ""
